@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  # Local Postgres — use this for development if you're not using Supabase.
+  # If using Supabase, you can comment out this service and point DATABASE_URL
+  # to your Supabase connection string in backend/.env.
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: miromarket
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/miromarket
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
