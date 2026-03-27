@@ -27,3 +27,12 @@ class MarketDetail(MarketSummary):
     volume_24h: Optional[Decimal] = None
     open_interest: Optional[Decimal] = None
     created_at: datetime
+
+
+class IngestionResult(BaseModel):
+    """Response shape returned by POST /markets/ingest."""
+    fetched: int      # How many markets Kalshi returned
+    ingested: int     # How many were successfully upserted
+    errors: int       # How many failed (logged server-side)
+    duration_ms: int  # Wall-clock time for the full operation
+    timestamp: datetime
