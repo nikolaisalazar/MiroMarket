@@ -2,9 +2,11 @@
 
 Multi-agent prediction market simulation engine.
 Backend: FastAPI + async SQLAlchemy + Supabase (PostgreSQL)
-Frontend: Next.js (Week 3+)
+Frontend: Next.js
 
 ---
+
+Mostly notes for me right now, relating to start-up and planning
 
 ## Prerequisites
 
@@ -66,6 +68,7 @@ Interactive docs: `http://localhost:8000/docs`
 ## Running the tests
 
 ```bash
+# Tests must be run from inside backend
 cd backend
 source .venv/bin/activate
 
