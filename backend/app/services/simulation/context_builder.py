@@ -109,6 +109,13 @@ _EPISTEMIC_FRAMINGS: dict[EpistemicStyle, str] = {
         "shifts. You trust your pattern-matching ability and act on it with "
         "confidence."
     ),
+    EpistemicStyle.custom: (
+        # Placeholder only — build_system_prompt() bypasses this entry entirely
+        # when persona.custom_system_prompt is set, which it always is for custom
+        # personas.  This entry exists solely to keep _EPISTEMIC_FRAMINGS in sync
+        # with the EpistemicStyle enum so the structural guard tests don't fail.
+        "You are an analytical forecasting agent applying your own reasoning methodology."
+    ),
 }
 
 
@@ -218,7 +225,25 @@ def build_system_prompt(persona: AgentPersona) -> str:
     The system prompt intentionally contains no market data.  Market facts
     live in the user prompt so that persona identity and market analysis
     remain cleanly separated.
+
+    Custom personas (epistemic_style == EpistemicStyle.custom) supply their
+    own identity via custom_system_prompt.  The output schema is always
+    appended — the aggregator's JSON contract is non-negotiable regardless
+    of who authored the prompt.
     """
+    # --- Custom persona path ------------------------------------------------
+    # The user has authored the full identity section.  We only append the
+    # output schema so the aggregator's JSON contract is always enforced.
+    if persona.custom_system_prompt:
+        return "\n".join([
+            persona.custom_system_prompt,
+            "",
+            "---",
+            "",
+            _OUTPUT_SCHEMA,
+        ])
+
+    # --- Seed persona path --------------------------------------------------
     framing = _EPISTEMIC_FRAMINGS[persona.epistemic_style]
     expertise = (
         ", ".join(persona.domain_expertise)

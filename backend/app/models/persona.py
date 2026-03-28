@@ -15,6 +15,7 @@ class EpistemicStyle(str, enum.Enum):
     heuristic = "heuristic"
     contrarian = "contrarian"
     consensus = "consensus"
+    custom = "custom"      # User-authored persona with a fully custom system prompt
 
 
 class CalibrationProfile(str, enum.Enum):
@@ -50,6 +51,12 @@ class AgentPersona(Base):
     credibility_weight = Column(Numeric(4, 3), default=1.0)
 
     description = Column(Text)
+
+    # User-authored system prompt for custom personas (epistemic_style == custom).
+    # When set, build_system_prompt() uses this verbatim (plus the output schema).
+    # NULL for all seed personas — their identity is assembled from the fields above.
+    custom_system_prompt = Column(Text, nullable=True)
+
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 

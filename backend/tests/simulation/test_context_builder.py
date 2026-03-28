@@ -22,6 +22,7 @@ import pytest
 from app.models.persona import EpistemicStyle
 from app.services.simulation.context_builder import (
     _EPISTEMIC_FRAMINGS,
+    _OUTPUT_SCHEMA,
     build_base_context,
     build_system_prompt,
     build_user_prompt,
@@ -346,3 +347,74 @@ class TestBuildSystemPromptGuards:
             f"_EPISTEMIC_FRAMINGS contains keys with no matching EpistemicStyle: "
             f"{orphaned}. Remove or rename the stale entry."
         )
+
+
+# ===========================================================================
+# build_system_prompt — custom persona path
+# ===========================================================================
+
+
+def _custom_persona_stub(custom_prompt: str) -> types.SimpleNamespace:
+    """
+    Minimal persona-like namespace for testing the custom system prompt path.
+
+    build_system_prompt only reads persona attributes — it never calls
+    SQLAlchemy methods — so a SimpleNamespace is sufficient here.
+    """
+    return types.SimpleNamespace(
+        name="Custom Analyst",
+        epistemic_style=EpistemicStyle.custom,
+        custom_system_prompt=custom_prompt,
+        domain_expertise=["custom-domain"],
+        description="A user-authored forecasting agent.",
+    )
+
+
+class TestBuildSystemPromptCustom:
+    """
+    Tests for the custom persona branch in build_system_prompt.
+
+    Custom personas supply their own identity via custom_system_prompt.
+    The output schema must always be appended — the aggregator's JSON
+    contract is non-negotiable regardless of who authored the prompt.
+    """
+
+    _CUSTOM_IDENTITY = (
+        "You are a seasoned energy-sector analyst with 20 years of experience "
+        "in commodity markets. You reason from supply/demand fundamentals and "
+        "geopolitical risk factors, anchoring to long-run marginal cost curves."
+    )
+
+    def test_custom_prompt_appears_verbatim(self):
+        persona = _custom_persona_stub(self._CUSTOM_IDENTITY)
+        result = build_system_prompt(persona)
+        assert self._CUSTOM_IDENTITY in result
+
+    def test_output_schema_always_appended(self):
+        """
+        The output schema is injected regardless of who wrote the system prompt.
+        The aggregator depends on the JSON contract; it cannot be omitted.
+        """
+        persona = _custom_persona_stub(self._CUSTOM_IDENTITY)
+        result = build_system_prompt(persona)
+        assert "probability" in result
+        assert "0.01" in result and "0.99" in result
+
+    def test_custom_prompt_produces_different_output_than_seed(self, sample_personas):
+        """Custom persona prompt must differ from all seed persona prompts."""
+        persona = _custom_persona_stub(self._CUSTOM_IDENTITY)
+        custom_result = build_system_prompt(persona)
+        seed_results = [build_system_prompt(p) for p in sample_personas]
+        assert custom_result not in seed_results
+
+    def test_none_custom_prompt_falls_through_to_seed_path(self, sample_personas):
+        """
+        A persona with custom_system_prompt=None must follow the seed path
+        regardless of epistemic_style.  This guards against the branch
+        accidentally activating for seed personas.
+        """
+        bayesian = sample_personas[0]  # custom_system_prompt is None
+        result = build_system_prompt(bayesian)
+        # Seed path produces structured identity content — not the raw custom string.
+        assert bayesian.name in result
+        assert "Bayesian" in result or "prior" in result
